@@ -59,8 +59,7 @@ button:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
 .times{display:flex;flex-wrap:wrap;gap:8px}
 .chip{min-height:44px;padding:0 16px;font:700 15px Nunito,sans-serif;background:transparent;color:var(--ink);border:2px solid var(--line)}
 .chip.sel{background:var(--sun);border-color:var(--sun);color:#4a1030}
-#confirm{display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;margin-top:20px;border-radius:999px;text-decoration:none;
-  font:600 18px Fredoka,sans-serif;background:var(--berry);color:#fff;box-shadow:0 6px 0 var(--berry-d)}
+#confirm{width:100%;margin-top:20px;background:var(--berry);color:#fff;box-shadow:0 6px 0 var(--berry-d)}
 #confirm.off{opacity:.4;box-shadow:none;pointer-events:none}
 .big{font:700 clamp(26px,7vw,34px)/1.15 Fredoka,sans-serif;color:var(--berry);margin:6px 0 2px;text-wrap:balance}
 .gcal{display:inline-flex;align-items:center;justify-content:center;gap:10px;margin-top:22px;min-height:54px;padding:0 26px;border-radius:999px;
@@ -169,7 +168,7 @@ button:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
     <div class="grid" id="days"></div>
     <p class="lbl">Que horas?</p>
     <div class="times" id="times"></div>
-    <a id="confirm" class="cta off" href="#" target="_blank" rel="noopener" aria-disabled="true">Escolhe um dia ✨</a>
+    <button id="confirm" type="button" class="off" aria-disabled="true">Escolhe um dia ✨</button>
   </div>
 </section>
 
@@ -189,7 +188,7 @@ button:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
 <script>
 {
   /* ===== CONFIGURE AQUI ===== */
-  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbybbLA2m5aUia88cLoF8fgvr_t9vkk1q8ADQvMaaoy-MXBS1HPbcu__LeFu2kFnyFb2/exec";             // URL do Apps Script (termina em /exec) — cria o evento na SUA agenda
+  const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbw2NVl05aPpukZ0Mercgq5bqro2_2DDTxXTeyv6sgLp-47oGs4rZjKS-xAc1KvCwBCx/exec";             // URL do Apps Script (termina em /exec) — cria o evento na SUA agenda
   const HORARIOS = ["12:00","15:00","18:00","19:00","20:00","21:00"];
   /* ========================== */
 
@@ -276,21 +275,24 @@ button:focus-visible{outline:3px solid var(--sun);outline-offset:3px}
 
   /* --- Envio para a agenda dele (via Apps Script) --- */
   const pad = n => String(n).padStart(2, "0");
-  let label = "";
   function updateConfirm(){
     const c = $("confirm"), ok = !!(selDate && selTime);
     c.classList.toggle("off", !ok); c.setAttribute("aria-disabled", String(!ok));
     c.textContent = !selDate ? "Escolhe um dia ✨" : !selTime ? "Agora o horário ⏰" : "Confirmar 💖";
-    if (!ok) { c.href = "#"; return; }
+  }
+  $("confirm").addEventListener("click", () => {
+    if (!(selDate && selTime)) return;
     const d = selDate;
     const inicio = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${selTime}:00-03:00`;
     const dia = new Intl.DateTimeFormat("pt-BR", {weekday:"long", day:"numeric", month:"long"}).format(d);
-    label = `${dia.charAt(0).toUpperCase() + dia.slice(1)}, às ${selTime.replace(":00","h")}`;
-    c.href = SCRIPT_URL ? `${SCRIPT_URL}?${new URLSearchParams({inicio, txt: label})}` : "#";
-  }
-  $("confirm").addEventListener("click", e => {
-    if (!(selDate && selTime)) { e.preventDefault(); return; }
-    if (!SCRIPT_URL) e.preventDefault();
+    const label = `${dia.charAt(0).toUpperCase() + dia.slice(1)}, às ${selTime.replace(":00","h")}`;
+    // envia em segundo plano para o Apps Script — ela não vê nada do Google
+    if (SCRIPT_URL) {
+      const url = `${SCRIPT_URL}?${new URLSearchParams({inicio, txt: label})}`;
+      fetch(url, {mode: "no-cors"}).catch(() => { new Image().src = url; });
+    } else {
+      console.warn("SCRIPT_URL vazio: a data não foi enviada para a agenda.");
+    }
     $("chosen").textContent = label;
     hearts(); show("s3");
   });
